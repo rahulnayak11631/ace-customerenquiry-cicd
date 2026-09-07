@@ -1,0 +1,107 @@
+# Scoped identity for the GitHub Actions self-hosted runner (worker-02),
+# kept separate from the Argo Rollouts project's ci-deployer even though
+# both live in the ci-cd namespace - separate repos, separate blast radius.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ace-ci-deployer
+  namespace: ci-cd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ace-ci-deployer
+  namespace: ace-dev
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services", "pods", "pods/log", "endpoints", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ace-ci-deployer
+  namespace: ace-sit
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services", "pods", "pods/log", "endpoints", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ace-ci-deployer
+  namespace: ace-uat
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services", "pods", "pods/log", "endpoints", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ace-ci-deployer
+  namespace: ace-dev
+subjects:
+  - kind: ServiceAccount
+    name: ace-ci-deployer
+    namespace: ci-cd
+roleRef:
+  kind: Role
+  name: ace-ci-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ace-ci-deployer
+  namespace: ace-sit
+subjects:
+  - kind: ServiceAccount
+    name: ace-ci-deployer
+    namespace: ci-cd
+roleRef:
+  kind: Role
+  name: ace-ci-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ace-ci-deployer
+  namespace: ace-uat
+subjects:
+  - kind: ServiceAccount
+    name: ace-ci-deployer
+    namespace: ci-cd
+roleRef:
+  kind: Role
+  name: ace-ci-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ace-ci-deployer-token
+  namespace: ci-cd
+  annotations:
+    kubernetes.io/service-account.name: ace-ci-deployer
+type: kubernetes.io/service-account-token

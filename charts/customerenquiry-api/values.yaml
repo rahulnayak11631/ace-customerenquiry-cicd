@@ -1,0 +1,29 @@
+# Defaults - each environment overrides just image.tag (and occasionally
+# replicaCount) via its own values-<env>.yaml, applied on top of this file.
+replicaCount: 1
+
+image:
+  repository: rahulnayak11631/customerenqapi
+  tag: "main-7"
+  pullPolicy: IfNotPresent
+
+serverName: customerenqapi
+
+service:
+  port: 80
+  targetPort: 7800
+
+ingress:
+  host: ai-poc-ingress
+  path: /ace-dev
+  tlsSecretName: ingress-tls
+
+imagePullSecretName: regcred
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 768Mi
+  limits:
+    cpu: "1"
+    memory: 1536Mi

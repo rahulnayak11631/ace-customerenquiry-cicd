@@ -1,0 +1,214 @@
+name: ACE customerEnquiryAPI CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "customerEnquiryAPI/**"
+      - ".github/workflows/ace-cicd.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # deploy jobs commit image-tag bumps back to charts/*/values-*.yaml
+
+concurrency:
+  group: ace-cicd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: rahulnayak11631/customerenqapi
+  ACE_HOME: /opt/IBM/ace-13.0.8.0
+
+jobs:
+  build:
+    runs-on: [self-hosted, ace-cicd]
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+      version: ${{ steps.vars.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: vars
+        run: |
+          set -e
+          echo "tag=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          VERSION=$(grep -oP "apiVersion = '\K[^']+" customerEnquiryAPI/postEnquiry_customerEnqAPI.esql | head -1)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Detected apiVersion from ESQL: ${VERSION}"
+
+      - name: Build BAR
+        run: |
+          set -e
+          source "${ACE_HOME}/server/bin/mqsiprofile"
+          ibmint --version
+          mkdir -p build
+          ibmint package --input-path . --output-bar-file build/customerenqapi.bar
+
+      # A BAR file is a standard zip archive - checking it contains the
+      # expected application is a fast, reliable structural validation
+      # before spending time on Sonar/Trivy/image build. The real
+      # functional/HTTP test happens post-deploy (checklist's separate
+      # "End-to-End Validation" item) - no need to duplicate a full
+      # transient-server test here too.
+      - name: Application Testing (BAR validation)
+        run: |
+          set -e
+          unzip -l build/customerenqapi.bar | tee build/bar-contents.txt
+          grep -qi "customerEnquiryAPI" build/bar-contents.txt
+
+      - name: SonarQube analysis
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          sonar-scanner \
+            -Dsonar.projectKey=ace-customerenquiry-cicd \
+            -Dsonar.projectName=ace-customerenquiry-cicd \
+            -Dsonar.sources=customerEnquiryAPI \
+            -Dsonar.host.url="${SONAR_HOST_URL}" \
+            -Dsonar.token="${SONAR_TOKEN}" \
+            -Dsonar.qualitygate.wait=true \
+            -Dsonar.qualitygate.timeout=120
+
+      - name: Docker build
+        run: |
+          set -e
+          cp build/customerenqapi.bar docker/customerenqapi.bar
+          docker build \
+            --build-arg BAR_FILE=customerenqapi.bar \
+            --build-arg SERVER_NAME=customerenqapi \
+            -t "${IMAGE}:${{ steps.vars.outputs.tag }}" \
+            -f docker/Dockerfile docker
+          rm -f docker/customerenqapi.bar
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ steps.vars.outputs.tag }}
+          format: table
+          severity: CRITICAL,HIGH
+          # Report-only for this POC: ACE's base OS layer alone carries a lot
+          # of pre-existing CVEs unrelated to anything this pipeline
+          # controls. Flip to a non-zero exit-code (and drop HIGH from
+          # severity, or add ignore-unfixed: true) to make this a real gate.
+          exit-code: "0"
+
+      - name: Docker push
+        run: |
+          set -e
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+          docker push "${IMAGE}:${{ steps.vars.outputs.tag }}"
+          docker logout
+
+  deploy-dev:
+    needs: build
+    runs-on: [self-hosted, ace-cicd]
+    env:
+      TAG: ${{ needs.build.outputs.tag }}
+      VERSION: ${{ needs.build.outputs.version }}
+      KUBECONFIG: /home/ec2-user/.kube/ace-ci-deployer.config
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bump dev image tag
+        run: |
+          set -e
+          yq -i '.image.tag = strenv(TAG)' charts/customerenquiry-api/values-dev.yaml
+
+      - name: Commit and push
+        run: |
+          set -e
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git commit -am "deploy(dev): bump image to ${TAG}" || echo "nothing to commit"
+          git push
+
+      - name: ArgoCD sync (dev)
+        run: |
+          argocd app sync ace-customerenquiry-dev \
+            --server "${{ secrets.ARGOCD_SERVER }}" --plaintext --grpc-web --grpc-web-root-path argocd \
+            --auth-token "${{ secrets.ARGOCD_AUTH_TOKEN }}" --timeout 240
+
+      - name: Wait for rollout
+        run: bash ci/scripts/wait-for-rollout.sh ace-dev 240
+
+      - name: Smoke test
+        run: bash ci/scripts/smoke-test.sh /ace-dev "${VERSION}"
+
+  deploy-sit:
+    needs: [build, deploy-dev]
+    if: success()
+    runs-on: [self-hosted, ace-cicd]
+    env:
+      TAG: ${{ needs.build.outputs.tag }}
+      VERSION: ${{ needs.build.outputs.version }}
+      KUBECONFIG: /home/ec2-user/.kube/ace-ci-deployer.config
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bump sit image tag
+        run: |
+          set -e
+          yq -i '.image.tag = strenv(TAG)' charts/customerenquiry-api/values-sit.yaml
+
+      - name: Commit and push
+        run: |
+          set -e
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git commit -am "deploy(sit): bump image to ${TAG}" || echo "nothing to commit"
+          git push
+
+      - name: ArgoCD sync (sit)
+        run: |
+          argocd app sync ace-customerenquiry-sit \
+            --server "${{ secrets.ARGOCD_SERVER }}" --plaintext --grpc-web --grpc-web-root-path argocd \
+            --auth-token "${{ secrets.ARGOCD_AUTH_TOKEN }}" --timeout 240
+
+      - name: Wait for rollout
+        run: bash ci/scripts/wait-for-rollout.sh ace-sit 240
+
+      - name: Smoke test
+        run: bash ci/scripts/smoke-test.sh /ace-sit "${VERSION}"
+
+  # This job pauses on the "uat-promotion" GitHub Environment - a required
+  # reviewer (rahulnayak11631) gets emailed and must click Review deployments
+  # > Approve before anything below runs. Reject/timeout and UAT is never
+  # touched, same as an automated failure elsewhere in this pipeline.
+  deploy-uat:
+    needs: [build, deploy-sit]
+    if: success()
+    environment:
+      name: uat-promotion
+    runs-on: [self-hosted, ace-cicd]
+    env:
+      TAG: ${{ needs.build.outputs.tag }}
+      VERSION: ${{ needs.build.outputs.version }}
+      KUBECONFIG: /home/ec2-user/.kube/ace-ci-deployer.config
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bump uat image tag
+        run: |
+          set -e
+          yq -i '.image.tag = strenv(TAG)' charts/customerenquiry-api/values-uat.yaml
+
+      - name: Commit and push
+        run: |
+          set -e
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git commit -am "deploy(uat): bump image to ${TAG} [approved]" || echo "nothing to commit"
+          git push
+
+      - name: ArgoCD sync (uat)
+        run: |
+          argocd app sync ace-customerenquiry-uat \
+            --server "${{ secrets.ARGOCD_SERVER }}" --plaintext --grpc-web --grpc-web-root-path argocd \
+            --auth-token "${{ secrets.ARGOCD_AUTH_TOKEN }}" --timeout 240
+
+      - name: Wait for rollout
+        run: bash ci/scripts/wait-for-rollout.sh ace-uat 240
+
+      - name: Smoke test
+        run: bash ci/scripts/smoke-test.sh /ace-uat "${VERSION}"

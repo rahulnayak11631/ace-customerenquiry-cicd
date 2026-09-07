@@ -1,0 +1,6 @@
+apiVersion: v2
+name: customerenquiry-api
+description: IBM ACE customerEnquiryAPI integration server
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

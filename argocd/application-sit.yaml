@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ace-customerenquiry-sit
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/rahulnayak11631/ace-customerenquiry-cicd.git
+    targetRevision: main
+    path: charts/customerenquiry-api
+    helm:
+      valueFiles:
+        - values-sit.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ace-sit
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

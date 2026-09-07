@@ -1,0 +1,41 @@
+
+
+CREATE COMPUTE MODULE postEnquiry_customerEnqAPI
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+		DECLARE customerId CHARACTER;
+
+    SET customerId = InputRoot.JSON.Data.customerId;
+
+    CREATE FIELD OutputRoot.JSON.Data;
+
+    IF customerId = '1001' THEN
+
+        SET OutputRoot.JSON.Data.status = 'SUCCESS';
+        SET OutputRoot.JSON.Data.statusCode = '200';
+        SET OutputRoot.JSON.Data.message = 'Customer details retrieved successfully';
+
+        CREATE FIELD OutputRoot.JSON.Data.customer;
+
+        SET OutputRoot.JSON.Data.customer.customerId = '1001';
+        SET OutputRoot.JSON.Data.customer.customerName = 'John Smith';
+        SET OutputRoot.JSON.Data.customer.gender = 'Male';
+        SET OutputRoot.JSON.Data.customer.dateOfBirth = '1990-05-20';
+        SET OutputRoot.JSON.Data.customer.mobileNumber = '+971501234567';
+        SET OutputRoot.JSON.Data.customer.currency = 'AED';
+        SET OutputRoot.JSON.Data.customer.availableBalance = 25000.50;
+        SET OutputRoot.JSON.Data.customer.accountStatus = 'Active';
+        SET OutputRoot.JSON.Data.customer.apiVersion = 'v1.0.0';
+        
+
+    ELSE
+
+        SET OutputRoot.JSON.Data.status = 'FAILED';
+        SET OutputRoot.JSON.Data.statusCode = '404';
+        SET OutputRoot.JSON.Data.message = 'Customer not found';
+
+    END IF;
+		RETURN TRUE;
+	END;
+END MODULE;

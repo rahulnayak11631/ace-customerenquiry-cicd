@@ -1,0 +1,44 @@
+{
+  "swagger" : "2.0",
+  "info" : {
+    "title" : "customerEnquiryAPI",
+    "version" : "1.0.0",
+    "description" : "customerEnquiryAPI"
+  },
+  "paths" : {
+    "/v1/enquiry" : {
+      "post" : {
+        "operationId" : "postEnquiry",
+        "responses" : {
+          "200" : {
+            "description" : "The operation was successful.",
+            "schema" : {
+              "$ref" : "#/definitions/customerEnqRes"
+            }
+          }
+        },
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "description" : "Insert a enquiry",
+        "parameters" : [ {
+          "name" : "body",
+          "in" : "body",
+          "schema" : {
+            "$ref" : "#/definitions/customerEnqReq"
+          },
+          "description" : "The request body for the operation",
+          "required" : true
+        } ]
+      }
+    }
+  },
+  "basePath" : "/customerenquiryapi",
+  "definitions" : {
+    "customerEnqReq" : {
+      "type" : "object"
+    },
+    "customerEnqRes" : {
+      "type" : "object"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customerenquiry-api
+  labels:
+    app: customerenquiry-api
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: customerenquiry-api
+  template:
+    metadata:
+      labels:
+        app: customerenquiry-api
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecretName }}
+      containers:
+        - name: customerenquiry-api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: SERVER_NAME
+              value: {{ .Values.serverName | quote }}
+          ports:
+            - containerPort: {{ .Values.service.targetPort }}
+          # ACE's REST listener only maps POST on this path (no GET handler),
+          # and the container doesn't expose a separate admin/health port -
+          # so a TCP check on the listener port is the reliable probe here,
+          # not an HTTP path check. ACE integration servers take a while to
+          # boot (full runtime init), hence the generous initialDelaySeconds.
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 4
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
