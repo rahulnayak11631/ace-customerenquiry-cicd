@@ -7,26 +7,33 @@ CREATE COMPUTE MODULE postEnquiry_customerEnqAPI
 		DECLARE customerId CHARACTER;
 
     SET customerId = InputRoot.JSON.Data.customerId;
+    
+    IF customerId = '1001' THEN
 
     CREATE FIELD OutputRoot.JSON.Data;
 
-    IF customerId = '1001' THEN
-
-        SET OutputRoot.JSON.Data.status = 'SUCCESS';
+    SET OutputRoot.JSON.Data.status = 'SUCCESS';
         SET OutputRoot.JSON.Data.statusCode = '200';
         SET OutputRoot.JSON.Data.message = 'Customer details retrieved successfully';
 
         CREATE FIELD OutputRoot.JSON.Data.customer;
 
-        SET OutputRoot.JSON.Data.customer.customerId = '1001';
-        SET OutputRoot.JSON.Data.customer.customerName = 'John Smith';
-        SET OutputRoot.JSON.Data.customer.gender = 'Male';
-        SET OutputRoot.JSON.Data.customer.dateOfBirth = '1990-05-20';
-        SET OutputRoot.JSON.Data.customer.mobileNumber = '+971501234567';
+        SET OutputRoot.JSON.Data.customer.customerId = '1002';
+        SET OutputRoot.JSON.Data.customer.customerName = 'Alice Johnson';
+        SET OutputRoot.JSON.Data.customer.gender = 'Female';
+        SET OutputRoot.JSON.Data.customer.dateOfBirth = '1992-08-18';
+        SET OutputRoot.JSON.Data.customer.mobileNumber = '+971509999999';
+        SET OutputRoot.JSON.Data.customer.email = 'alice@gmail.com';
+        SET OutputRoot.JSON.Data.customer.customerType = 'Retail';
+        SET OutputRoot.JSON.Data.customer.nationality = 'India';
+        SET OutputRoot.JSON.Data.customer.branchCode = '002';
+        SET OutputRoot.JSON.Data.customer.branchName = 'Abu Dhabi Branch';
+        SET OutputRoot.JSON.Data.customer.accountNumber = '223456789012';
+        SET OutputRoot.JSON.Data.customer.accountType = 'Current';
         SET OutputRoot.JSON.Data.customer.currency = 'AED';
-        SET OutputRoot.JSON.Data.customer.availableBalance = 25000.50;
+        SET OutputRoot.JSON.Data.customer.availableBalance = 15200.75;
         SET OutputRoot.JSON.Data.customer.accountStatus = 'Active';
-        SET OutputRoot.JSON.Data.customer.apiVersion = 'v1.0.0';
+        SET OutputRoot.JSON.Data.customer.apiVersion = 'v2.0.0';
         
 
     ELSE
