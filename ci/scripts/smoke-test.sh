@@ -35,10 +35,13 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
     continue
   fi
 
+  # ACE's REST binding emits OutputRoot.JSON.Data directly as the response
+  # body's root - "customer" is top-level, not nested under a "Data" key
+  # (confirmed against a real response: {"status":...,"customer":{...}}).
   ACTUAL_VERSION=$(python3 -c "import json,sys
 try:
     d=json.load(open('$RESP_FILE'))
-    print(d.get('Data',{}).get('customer',{}).get('apiVersion',''))
+    print(d.get('customer',{}).get('apiVersion',''))
 except Exception:
     print('')")
 
