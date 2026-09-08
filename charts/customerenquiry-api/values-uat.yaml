@@ -1,2 +1,4 @@
 ingress:
   path: /ace-uat
+image:
+  tag: f5c6ce2
