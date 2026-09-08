@@ -1,2 +1,4 @@
 ingress:
   path: /ace-dev
+image:
+  tag: 05a29af
