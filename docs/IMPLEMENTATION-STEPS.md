@@ -237,16 +237,26 @@ in, always injected via the environment's own values file) extended to
 everything else that differs between environments - endpoints,
 credentials, and now expected test outcomes.
 
-### Canary releases with Argo Rollouts
+### Choosing an Argo Rollouts strategy: Blue-Green or Canary
 
-The Argo Rollouts project earlier in this work used **Blue-Green** - build
-the new version fully, then cut traffic over in one atomic move. **Canary**
-is Argo Rollouts' other strategy: shift a small, growing percentage of real
-traffic to the new version and watch it before shifting more, instead of an
-all-or-nothing switch. It's a direct drop-in for this project's current
-plain `Deployment` - the same `ingress-nginx` already fronting `ace-dev`/
-`ace-sit`/`ace-uat` is exactly what Argo Rollouts' nginx traffic-routing
-integration drives; nothing new to install.
+This project deploys with a plain `Deployment` today. Argo Rollouts (already
+proven in the earlier Argo Rollouts project) replaces that with a choice of
+*how* a new version goes live, both safer than a Deployment's default
+rolling update:
+
+- **Blue-Green** - build the new version fully, validate it privately, then
+  cut 100% of traffic over in one atomic move. What the Argo Rollouts
+  project already uses.
+- **Canary** - shift a small, growing percentage of real traffic to the new
+  version and watch it before shifting more, instead of an all-or-nothing
+  switch.
+
+Either is a direct drop-in for this project's current plain `Deployment` -
+the same `ingress-nginx` already fronting `ace-dev`/`ace-sit`/`ace-uat` is
+exactly what Argo Rollouts' nginx traffic-routing integration drives for
+canary; nothing new to install. Canary is the more involved of the two to
+wire up (it needs the traffic-split annotations below), so that's the one
+spelled out here.
 
 Mechanically: convert `templates/deployment.yaml`'s `kind: Deployment` to
 `kind: Rollout` (`argoproj.io/v1alpha1`), point it at a `stableService` and
