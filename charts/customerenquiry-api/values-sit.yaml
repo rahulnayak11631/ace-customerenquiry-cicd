@@ -1,2 +1,4 @@
 ingress:
   path: /ace-sit
+image:
+  tag: f5c6ce2
