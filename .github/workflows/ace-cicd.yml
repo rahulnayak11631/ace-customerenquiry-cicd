@@ -129,6 +129,7 @@ jobs:
           git config user.name "ci-bot"
           git config user.email "ci-bot@users.noreply.github.com"
           git commit -am "deploy(dev): bump image to ${TAG}" || echo "nothing to commit"
+          git pull --rebase
           git push
 
       - name: ArgoCD sync (dev)
@@ -165,6 +166,7 @@ jobs:
           git config user.name "ci-bot"
           git config user.email "ci-bot@users.noreply.github.com"
           git commit -am "deploy(sit): bump image to ${TAG}" || echo "nothing to commit"
+          git pull --rebase
           git push
 
       - name: ArgoCD sync (sit)
@@ -207,6 +209,7 @@ jobs:
           git config user.name "ci-bot"
           git config user.email "ci-bot@users.noreply.github.com"
           git commit -am "deploy(uat): bump image to ${TAG} [approved]" || echo "nothing to commit"
+          git pull --rebase
           git push
 
       - name: ArgoCD sync (uat)
